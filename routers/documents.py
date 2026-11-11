@@ -1,10 +1,6 @@
 from fastapi import APIRouter, UploadFile, File
 from pathlib import Path
 import os
-import json
-
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 router = APIRouter()
 
