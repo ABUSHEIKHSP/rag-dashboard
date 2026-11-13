@@ -1,19 +1,18 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pathlib import Path
-from typing import Literal, List
+from typing import Literal
 
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-from services.chunk_services import join_pages
+from services.chunk_services import (
+    load_document,
+    join_pages,
+    chunk_documents
+)
 
 router = APIRouter()
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-CHUNK_DIR = Path("chunks")
-CHUNK_DIR.mkdir(exist_ok=True)
 
 @router.get("/playground/list_textsplitters", tags=["chunking playground"])
 async def list_textsplitters():
@@ -24,29 +23,22 @@ async def list_textsplitters():
         ]
     }
 
+
 @router.get("/playground/chunk", tags=["chunking playground"])
-async def chunk_pdf(document: str, 
-                    pages_to_join: int = 1,
-                    chunk_size: int = 100, 
-                    chunk_overlap: int = 0,
-                    text_splitter: Literal[
-                    "RecursiveCharacterTextSplitter",
-                    "TokenTextSplitter"] = "RecursiveCharacterTextSplitter",
-                    preview: int = 5):
-
-    SPLITTERS = {
-        "RecursiveCharacterTextSplitter": RecursiveCharacterTextSplitter,
-        "TokenTextSplitter": RecursiveCharacterTextSplitter.from_tiktoken_encoder,
-    }
-
-    splitter_class = SPLITTERS[text_splitter]
-
-    text_splitter = splitter_class(chunk_size=chunk_size, 
-                                    chunk_overlap=chunk_overlap )
+async def chunk_pdf(
+    document: str,
+    pages_to_join: int = 1,
+    chunk_size: int = 100,
+    chunk_overlap: int = 0,
+    text_splitter: Literal[
+        "RecursiveCharacterTextSplitter",
+        "TokenTextSplitter"
+    ] = "RecursiveCharacterTextSplitter",
+    preview: int = 5
+):
 
     file_location = UPLOAD_DIR / document
-    loader = PyMuPDFLoader(file_path=file_location)
-    documents = loader.load() 
+    documents = load_document(file_location)
 
     print("Original pages:", len(documents))
 
@@ -58,8 +50,13 @@ async def chunk_pdf(document: str,
     for i, doc in enumerate(documents):
         print(f"Document {i}: {len(doc.page_content)} characters")
 
-    texts = text_splitter.split_documents(documents)
-    
+    texts = chunk_documents(
+        documents,
+        chunk_size,
+        chunk_overlap,
+        text_splitter
+    )
+
     return {
         "chunks": texts[:preview]
     }
